@@ -1,0 +1,193 @@
+<!doctype html>
+<head>
+    <title>PiSquared</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Outlined" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/vue@2.5.17/dist/vue.js"></script>
+    <link rel="manifest" href="static/manifest.webmanifest">
+	<link rel="apple-touch-icon" href="static/apple-touch-icon.png">
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker
+                .register('sw.js')
+                .then(function () { console.log('Service Worker Registered'); });
+        }
+
+        window.onload = function () {
+        let deferredPrompt;
+        const addBtn = document.querySelector('.add-button');
+        addBtn.style.display = 'none';
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent Chrome 67 and earlier from automatically showing the prompt
+            e.preventDefault();
+            // Stash the event so it can be triggered later.
+            deferredPrompt = e;
+            // Update UI to notify the user they can add to home screen
+            addBtn.style.display = 'block';
+
+            addBtn.addEventListener('click', (e) => {
+                // hide our user interface that shows our A2HS button
+                addBtn.style.display = 'none';
+                // Show the prompt
+                deferredPrompt.prompt();
+                // Wait for the user to respond to the prompt
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User accepted the A2HS prompt');
+                    } else {
+                        console.log('User dismissed the A2HS prompt');
+                    }
+                    deferredPrompt = null;
+                });
+            });
+        });
+
+
+            var app = new Vue({
+                el: '#app',
+                delimiters: ['[[', ']]'],
+                data: {
+                    apps: {},
+                    active_app: "",
+                    display_power: false
+                },
+                mounted() {
+                    this.update_status();
+                    setInterval(this.update_status, 5000);
+                },
+                methods: {
+                    launch_app(app) {
+                        var self = this;
+                        axios
+                            .get("/api/app/launch/" + app)
+                            .then(response => { self.update_status() });
+                    },
+                    stop_app() {
+                        var self = this;
+                        axios
+                            .get("/api/app/stop")
+                            .then(response => { self.update_status() });
+                    },
+                    update_status() {
+                        var self = this;
+                        axios
+                            .get("/api/app/list")
+                            .then(response => { self.apps = response.data });
+                        axios
+                            .get("/api/app/status")
+                            .then(response => { self.active_app = response.data.application });
+                        axios
+                            .get("/api/display/status")
+                            .then(response => { self.display_power = (response.data.result == "1") });
+                    },
+                    send_display() {
+                        if (this.display_power) {
+                            axios.get("/api/display/on");
+                        } else {
+                            axios.get("/api/display/off");
+                        }
+                    }
+                }
+            });
+        };
+    </script>
+    <style>
+        main {
+            padding-left: 300px;
+        }
+
+        .container {
+            width: 95%;
+        }
+
+        .logo {
+            width: 250px;
+            margin: 12.5px;
+        }
+
+        .switch {
+            padding-left: 15px;
+        }
+
+        .app-icon {
+            width: 42px;
+            position: absolute;
+            top: 0;
+            height: 100%;
+            left: 16px;
+        }
+
+        .app_active {
+            background-color: orange !important;
+        }
+
+        .launch-button {
+            position: absolute;
+            top: 0;
+            right: 16px;
+            height: 100%;
+            color: #26a69a;
+            cursor: pointer;
+        }
+
+        span.lever::after {
+            height: 50px !important;
+            width: 50px !important;
+            top: -10px !important;
+        }
+
+        span.lever {
+            width: 200px !important;
+            height: 30px !important;
+        }
+
+        .switch label input[type=checkbox]:checked + .lever:before, .switch label input[type=checkbox]:checked + .lever:after {
+            left: 150px !important;
+        }
+
+        .sidenav.sidenav-fixed {
+            transform: translateX(0) !important;
+        }
+    </style>
+</head>
+    <body>
+        <div id="app">
+            <ul class="sidenav sidenav-fixed">
+                <li class="logo">
+                    <object class="logo" type="image/svg+xml" data="static/pisquared.svg"></object>
+                </li>
+                <li>
+                    <div class="switch">
+                        <label>
+                            Off
+                            <input @change="send_display" v-model="display_power" type="checkbox">
+                            <span class="lever"></span>
+                            On
+                        </label>
+                    </div>
+                </li>
+                <li>
+                    <button class="add-button">Add</button>
+                </li>
+            </ul>
+            <main>
+                <div class="container">
+                    <ul class="collection">
+                        <li v-for="(app, id, idx) in apps" class="collection-item avatar" v-bind:class="{app_active: active_app == id}">
+                            <div class="valign-wrapper app-icon"><img :src='"api/app/icon/" + id' width="50px" height="50px"></div>
+                            <span class="title">[[ app.name ]]</span>
+                            <p>[[ app.description ]]</p>
+                            <div class="launch-button valign-wrapper">
+                                <i v-if="active_app == id" @click="stop_app()" class="medium material-icons">highlight_off</i>
+                                <i v-else class="medium material-icons" @click="launch_app(id)">launch</i>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </main>
+        </div>
+    </body>
+</html>

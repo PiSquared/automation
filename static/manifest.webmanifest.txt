@@ -1,0 +1,15 @@
+{
+  "background_color": "white",
+  "description": "Control the PiSquared Facility",
+  "display": "fullscreen",
+  "icons": [
+    {
+      "src": "static/pisquared.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ],
+  "name": "PiSquared",
+  "short_name": "PiSquared",
+  "start_url": "/"
+}
