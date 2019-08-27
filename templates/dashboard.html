@@ -52,7 +52,8 @@
                 data: {
                     apps: {},
                     active_app: "",
-                    display_power: false
+                    display_power: false,
+                    display_status: "unknown"
                 },
                 mounted() {
                     this.update_status();
@@ -81,7 +82,18 @@
                             .then(response => { self.active_app = response.data.application });
                         axios
                             .get("/api/display/status")
-                            .then(response => { self.display_power = (response.data.result == "1") });
+                            .then(response => {
+                                self.display_power = (response.data.result != "off");
+                                if (response.data.result == "on") {
+                                    self.display_status = "Display is ON";
+                                } else if (response.data.result == "boot_wait") {
+                                    self.display_status = "Powering on...";
+                                } else if (response.data.result == "off") {
+                                    self.display_status = "Display is OFF";
+                                } else {
+                                    self.display_status = "ERROR";
+                                }
+                            });
                     },
                     send_display() {
                         if (this.display_power) {
@@ -170,7 +182,7 @@
                     </div>
                 </li>
                 <li>
-                    <button class="add-button">Add</button>
+                    <p>[[ display_status ]]</p>
                 </li>
             </ul>
             <main>

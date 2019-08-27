@@ -1,7 +1,6 @@
 import os
 import json
 import time
-import serial
 import psutil
 import signal
 import subprocess
@@ -13,54 +12,17 @@ import config
 
 mimetypes.add_type('text/javascript', '.js')
 
-def serial_cmd(command, value="", cmd_type="op", selected="A1", target=""):
-    try:
-        with serial.Serial(config.SERIAL_PORT, config.SERIAL_BAUDRATE, timeout=1) as port:
-            cmd = "{}{}{}".format(cmd_type, selected, command)
-            if target:
-                cmd += "({})".format(target)
-            if value:
-                cmd += "={}\r".format(value)
-            else:
-                cmd += "?\r"
-            port.write(cmd.encode('ASCII'))
-            if not '*' in selected:
-                ret = bytes()
-                start_time = time.time()
-                while not ret.decode('ASCII').endswith("\r"):
-                    if time.time() - start_time > 10:
-                        return "TIMEOUT"
-                    character = port.read()
-                    ret += character
-                if value:
-                    return ret.decode('ASCII').split("\r")[0]
-                if "=" in ret.decode('ASCII'):
-                    return ret.decode('ASCII').split("=")[1].split("\r")[0]
-                return ret.decode('ASCII').split("\r")[0]
-    except serial.SerialException:
-        return "EXCEPTION"
-
-status = False
-
 @app.route("/api/display/<action>")
 def display(action):
-    global status
-    res = True
     if action == "on":
-        status = True
         requests.get("http://10.0.0.22/on")
-    elif action == "poweron":
-        res = serial_cmd("display.power", "ON")
     elif action == "off":
-        status = False
-        res = serial_cmd("display.power", "OFF")
         requests.get("http://10.0.0.22/off")
     elif action == "status":
-        res = serial_cmd("display.power")
-        return jsonify(success=True, result="1" if status else "0", reason="")
+        resp = requests.get("http://10.0.0.22/status")
+        return jsonify(success=True, result=resp.text, reason="")
     else:
         return jsonify(success=False, result=False, reason="Unknown Command")
-    return jsonify(success=False, result=res, reason="Controller didn't return, or returned an error.")
 
 def check_lock():
     if not os.path.isfile(config.APP_LOCK):
