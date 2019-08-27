@@ -97,9 +97,14 @@
                     },
                     send_display() {
                         if (this.display_power) {
-                            axios.get("/api/display/on");
+                            var self = this;
+                            axios.get("/api/display/on").then(response => {
+                                self.update_status();
+                            });
                         } else {
-                            axios.get("/api/display/off");
+                            axios.get("/api/display/off").then(response => {
+                                self.update_status();
+                            });
                         }
                     }
                 }
@@ -145,6 +150,12 @@
             cursor: pointer;
         }
 
+        .statustext {
+            margin: 0 auto;
+            font-size: 20pt;
+            text-align: center;
+        }
+
         span.lever::after {
             height: 50px !important;
             width: 50px !important;
@@ -182,7 +193,10 @@
                     </div>
                 </li>
                 <li>
-                    <p>[[ display_status ]]</p>
+                    <p class="statustext">[[ display_status ]]</p>
+                </li>
+                <li>
+                    <button class="add-button">Add</button>
                 </li>
             </ul>
             <main>
