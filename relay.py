@@ -19,7 +19,9 @@ state_enter_time = 0
 commands = Queue.Queue()
 display_status = {}
 for i in config.DISPLAYS:
-  display_status[i] = {}
+  display_status[i] = {
+    "DISPLAY.POWER": "OFF"
+  }
 
 def delayThread():
   global state
@@ -44,6 +46,8 @@ def delayThread():
     time.sleep(15)
 
 def update_status(display, key, value):
+  global state
+  global state_enter_time
   if not display in display_status.keys():
     print("Unknown display {} ({}={})".format(display, key, value))
     return
@@ -55,7 +59,14 @@ def update_status(display, key, value):
   if state == "boot_wait":
     if key == "SYSTEM.STATE":
       if value == "READY":
-        serialCommand("DISPLAY.POWER", value="ON", selected=display)
+        for i in display_status.keys():
+          if "SYSTEM.STATE" in display_status[i].keys():
+            if display_status[i]["SYSTEM.STATE"] != "READY":
+              break
+        else:
+          serialCommand("DISPLAY.POWER", value="ON", selected="**")
+          state = "on"
+          state_enter_time = time.time()
       else:
         serialCommand("SYSTEM.STATE", selected=display)
   if state == "on":
@@ -77,7 +88,6 @@ def serialThread():
           else:
             pending.append([command, time.time()])
             port.write(command)
-            time.sleep(0.1)
       except Queue.Empty:
         pass
       now = time.time()
@@ -85,7 +95,6 @@ def serialThread():
         if i[1] < now - 3:
           port.write(i[0])
           i[1] = now
-          time.sleep(0.1)
 
       char = port.read()
       if char == '\r':
@@ -131,7 +140,6 @@ def on():
   state = "boot_wait"
   state_enter_time = time.time()
   for i in display_status.keys():
-    display_status[i]["DISPLAY.POWER"] = "UNKNOWN"
     serialCommand("SYSTEM.STATE", selected=i)
   for i in relays:
     i.on()
